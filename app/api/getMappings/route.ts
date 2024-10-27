@@ -8,6 +8,8 @@ export async function GET() {
   const productNameMapping = JSON.parse(process.env.PRODUCT_NAME_MAPPING || '{}');
   const productAgentCommissionMapping = JSON.parse(process.env.PRODUCT_AGENT_COMMISSION_MAPPING || '{}');
   const newColumns = JSON.parse(process.env.NEW_COLUMNS || '[]');
+  const annuityCommissionPercentage = JSON.parse(process.env.ANNUITY_COMMISSION_PERCENTAGE || '0');
+  const excludedAgents = JSON.parse(process.env.EXCLUDED_AGENTS || '[]');
 
   // Respond with JSON object containing mappings
   return NextResponse.json({
@@ -17,5 +19,7 @@ export async function GET() {
     productNameMapping,
     productAgentCommissionMapping,
     newColumns,
+    annuityCommissionPercentage,
+    excludedAgents
   });
 }

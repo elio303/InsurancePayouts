@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import * as dfd from "danfojs";
 import * as XLSX from "xlsx";
@@ -20,15 +21,23 @@ interface Mappings {
   productNameMapping: { [key: string]: string };
   productAgentCommissionMapping: { [key: string]: { [key: string]: number } };
   newColumns: string[];
+  annuityCommissionPercentage: number;
+  excludedAgents: string[];
 }
 
-export default function Home() {
+interface Commission {
+  percentage: number;
+  amount: number;
+}
+
+const Home: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [mappings, setMappings] = useState<Mappings | null>(null);
   const [loadingMappings, setLoadingMappings] = useState<boolean>(true);
 
+  // Fetch mappings on component mount
   useEffect(() => {
-    async function fetchMappings() {
+    const fetchMappings = async () => {
       try {
         const response = await fetch('/api/getMappings');
         const data = await response.json();
@@ -36,21 +45,21 @@ export default function Home() {
       } catch (error) {
         console.error("Failed to load mappings:", error);
       } finally {
-        setLoadingMappings(false); 
+        setLoadingMappings(false);
       }
-    }
+    };
 
     fetchMappings();
   }, []);
 
-  // Drop event handler
+  // Handle file drop
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (loadingMappings) {  // Check if mappings are still loading
+    if (loadingMappings) {
       alert("Please wait until mappings have been loaded!");
       return;
     }
 
-    if (mappings == null) {
+    if (!mappings) {
       alert("Mappings failed to load. Please try again.");
       return;
     }
@@ -58,36 +67,32 @@ export default function Home() {
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
 
-    let df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0], mappings as Mappings);
+    const df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0], mappings);
+    const updatedDf = fillCommission(df, mappings.productAgentCommissionMapping, mappings.excludedAgents, mappings.annuityCommissionPercentage);
+
     const workbook: XLSX.WorkBook = XLSX.utils.book_new();
-
-    // Create sheets
-    createGroupedSheets(workbook, df);
-    createEarningsReportSheet(workbook, df);
-
-    // Write the workbook to file
+    createGroupedSheets(workbook, updatedDf);
+    createEarningsReportSheet(workbook, updatedDf);
+    
     XLSX.writeFile(workbook, "grouped_data.xlsx");
   }, [loadingMappings, mappings]);
 
-  // Map files for display
-  const mapFiles = (acceptedFiles: File[]): FileData[] =>
-    acceptedFiles.map(file => ({
-      name: file.name,
-      size: file.size,
-    }));
+  // Map accepted files to FileData structure
+  const mapFiles = (acceptedFiles: File[]): FileData[] => 
+    acceptedFiles.map(file => ({ name: file.name, size: file.size }));
 
-  // Load and clean data from file
+  // Load and clean data from Excel file
   const loadAndCleanData = async (file: File, mappings: Mappings): Promise<dfd.DataFrame> => {
     let df: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
-    df = new dfd.DataFrame(df.values.slice(3, -2), { columns: df.values[2] as any });
-    df = df.drop({ columns: mappings?.columnsToDrop });
-    df.rename(mappings?.renameMapping as any, { inplace: true });
-    df = df.loc({ columns: mappings?.columnsToKeep });
-    df = mapProductNames(df, mappings.productNameMapping);
-    df = addEmptyColumns(df, mappings.newColumns); 
-    return df;
+    df = new dfd.DataFrame(df.values.slice(3, -2), { columns: df.values[2] as any })
+      .drop({ columns: mappings.columnsToDrop });
+    df.rename(mappings.renameMapping, { inplace: true });
+    df = df.loc({ columns: mappings.columnsToKeep });
+
+    return addEmptyColumns(mapProductNames(df, mappings.productNameMapping), mappings.newColumns);
   };
 
+  // Map product names according to mapping
   const mapProductNames = (df: dfd.DataFrame, productNameMapping: { [key: string]: string }): dfd.DataFrame => {
     df["Product Name"] = df["Product Name"].map((value: string) => productNameMapping[value] || value);
     return df;
@@ -96,14 +101,85 @@ export default function Home() {
   // Add empty columns to DataFrame
   const addEmptyColumns = (df: dfd.DataFrame, newColumns: string[]): dfd.DataFrame => {
     newColumns.forEach(column => {
-      const emptyArray: string[] = new Array(df.shape[0]).fill(""); // Create an array of empty strings
-      df = df.addColumn(column, emptyArray); // Update df with new column
+      const emptyArray: string[] = new Array(df.shape[0]).fill("");
+      df.addColumn(column, emptyArray, { inplace: true });
     });
-
-    return df; // Return the modified DataFrame
+    return df;
   };
 
-  // Create individual sheets grouped by Agent
+  // Fill commission based on the mappings
+  const fillCommission = (
+    df: dfd.DataFrame,
+    productAgentCommissionMapping: { [key: string]: { [key: string]: number } },
+    excludedAgents: string[],
+    annuityCommissionPercentage: number
+  ): dfd.DataFrame => {
+    const indices = {
+      productType: getColumnIndex("Product Type", df),
+      productName: getColumnIndex("Product Name", df),
+      agentName: getColumnIndex("Agent", df),
+      participation: getColumnIndex("% of particip", df),
+      premium: getColumnIndex("Premium Amt", df),
+      commissionPercentage: getColumnIndex("Commission %", df),
+      commissionOwed: getColumnIndex("Commission Owed", df),
+    };
+
+    const commissions: Commission[] = df.values.map((_, i) => {
+      const row = df.iloc({ rows: [i] }).values[0] as any[];
+      const { productType, productName, agent, participation, premium } = {
+        productType: row[indices.productType],
+        productName: row[indices.productName],
+        agent: row[indices.agentName],
+        participation: row[indices.participation],
+        premium: row[indices.premium]
+      };
+
+      if (excludedAgents.includes(agent.toUpperCase())) {
+        return { percentage: 0, amount: 0 };
+      }
+
+      switch (productType) {
+        case "Life":
+          return calculateLifeCommission(productAgentCommissionMapping, productName, agent, participation, premium);
+        case "Annuity":
+          return calculateAnnuityCommission(annuityCommissionPercentage, participation, premium);
+        default:
+          return { percentage: 0, amount: 0 };
+      }
+    });
+
+    df.addColumn("Commission %", commissions.map(c => c.percentage), { inplace: true });
+    df.addColumn("Commission Owed", commissions.map(c => c.amount), { inplace: true });
+    
+    return df;
+  };
+
+  // Calculate commission for Life products
+  const calculateLifeCommission = (mapping: { [key: string]: { [key: string]: number } }, productName: string, agent: string, participation: number, premium: number): Commission => {
+    const mappedCommissionPercentage = mapping[productName]?.[agent];
+    if (mappedCommissionPercentage) {
+      return {
+        percentage: mappedCommissionPercentage / 100,
+        amount: (mappedCommissionPercentage / 100) * participation * premium
+      };
+    }
+    return { percentage: 0, amount: 0 };
+  };
+
+  // Calculate commission for Annuity products
+  const calculateAnnuityCommission = (commissionPercentage: number, participation: number, premium: number): Commission => {
+    return {
+      percentage: commissionPercentage / 100,
+      amount: (commissionPercentage / 100) * participation * premium
+    };
+  };
+
+  // Get column index by column name
+  const getColumnIndex = (columnName: string, df: dfd.DataFrame): number => {
+    return df.columns.findIndex(currentColumnName => currentColumnName === columnName);
+  };
+
+  // Create grouped sheets in the workbook
   const createGroupedSheets = (workbook: XLSX.WorkBook, df: dfd.DataFrame): void => {
     const grouped: Groupby = df.groupby(["Agent"]) as Groupby;
     const uniqueAgents: string[] = df["Agent"].unique().values;
@@ -113,15 +189,13 @@ export default function Home() {
       const agentGroupJson = dfd.toJSON(agentGroup);
       if (Array.isArray(agentGroupJson)) {
         const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(agentGroupJson);
-        XLSX.utils.book_append_sheet(workbook, worksheet, agent.toString());
-
-        // Resize columns to fit content
+        XLSX.utils.book_append_sheet(workbook, worksheet, agent);
         resizeColumns(worksheet, agentGroupJson, Object.keys(agentGroupJson[0]));
       }
     });
   };
 
-  // Create Earnings Report Sheet
+  // Create earnings report sheet
   const createEarningsReportSheet = (workbook: XLSX.WorkBook, df: dfd.DataFrame): void => {
     const emptyRowsDf: dfd.DataFrame = createEmptyRows(df);
     const grouped: Groupby = df.groupby(["Agent"]) as Groupby;
@@ -135,55 +209,58 @@ export default function Home() {
     const earningsReportJson = dfd.toJSON(df);
     if (Array.isArray(earningsReportJson)) {
       const earningsReportSheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(earningsReportJson);
+
+      const rowCount = df.values.length;
+      const indices = {
+        commissionPercentage: getColumnIndex("Commission %", df),
+        commissionOwed: getColumnIndex("Commission Owed", df),
+      };
+  
+      for (let row = 1; row <= rowCount + 1; row++) {
+        const commissionOwedCellAddress = XLSX.utils.encode_cell({ c: indices.commissionOwed, r: row });
+        const commissionPercentageCellAddress = XLSX.utils.encode_cell({ c: indices.commissionPercentage, r: row });
+        if (earningsReportSheet[commissionOwedCellAddress]) {
+          earningsReportSheet[commissionOwedCellAddress].z = '$#,##0.00';
+        }
+        if (earningsReportSheet[commissionPercentageCellAddress]) {
+          earningsReportSheet[commissionPercentageCellAddress].z = '0.0%'; 
+        }
+      }
+
       const formattedDate: string = dayjs().format("MMDDYYYY");
       XLSX.utils.book_append_sheet(workbook, earningsReportSheet, `EarningsReport_${formattedDate}`);
-
-      // Resize columns to fit content for the earnings report sheet
       resizeColumns(earningsReportSheet, earningsReportJson, Object.keys(earningsReportJson[0]));
-
-      // Move Earnings Report to the front
       workbook.SheetNames = [workbook.SheetNames.pop() as string, ...workbook.SheetNames];
     }
   };
 
+  // Create empty rows for separation
   const createEmptyRows = (df: dfd.DataFrame): dfd.DataFrame => {
-    const emptyRow: { [key: string]: string } = Object.fromEntries(df.columns.map(column => [column, ""]));
-    const headerRow: { [key: string]: string } = Object.fromEntries(df.columns.map(column => [column, column]));
+    const emptyRow = Object.fromEntries(df.columns.map(column => [column, ""]));
+    const headerRow = Object.fromEntries(df.columns.map(column => [column, column]));
     return new dfd.DataFrame([emptyRow, emptyRow, headerRow]);
   };
 
-  // Function to resize columns based on the content
+  // Resize columns based on content
   const resizeColumns = (worksheet: XLSX.WorkSheet, jsonData: any[], headers: string[]) => {
     const columnWidths: number[] = [];
 
-    // Check header lengths first
     headers.forEach((header, index) => {
       const headerLength = header.length;
-      if (!columnWidths[index] || headerLength > columnWidths[index]) {
-        columnWidths[index] = headerLength;
-      }
+      columnWidths[index] = Math.max(columnWidths[index] || 0, headerLength);
     });
 
-    // Then check each row
     jsonData.forEach(row => {
       Object.keys(row).forEach((key, index) => {
         const cellValue = row[key]?.toString() || "";
         const cellLength = cellValue.length;
-
-        if (!columnWidths[index] || cellLength > columnWidths[index]) {
-          columnWidths[index] = cellLength;
-        }
+        columnWidths[index] = Math.max(columnWidths[index] || 0, cellLength);
       });
     });
 
-    // Set the column widths
-    columnWidths.forEach((width, index) => {
-      worksheet["!cols"] = worksheet["!cols"] || [];
-      worksheet["!cols"][index] = { wpx: (width + 2) * 7 }; // Adjust multiplier for better fitting
-    });
+    worksheet["!cols"] = columnWidths.map(width => ({ wpx: (width + 2) * 7 }));
   };
 
-  // Dropzone for drag-and-drop functionality
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -191,14 +268,13 @@ export default function Home() {
       "application/vnd.ms-excel": [".xls"],
     },
     multiple: false,
-    disabled: loadingMappings // Disable dropzone while loading mappings
+    disabled: loadingMappings
   });
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
       <h1 className="text-3xl font-semibold text-gray-800 mb-6">Drag and Drop File Upload</h1>
 
-      {/* Drag and Drop Zone */}
       <div
         {...getRootProps()}
         className={`w-full max-w-lg p-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
@@ -211,7 +287,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* File List */}
       <div className="mt-6 w-full max-w-lg">
         <h2 className="text-xl font-semibold text-gray-800 mb-3">Uploaded Files</h2>
         <ul className="space-y-3">
@@ -225,4 +300,6 @@ export default function Home() {
       </div>
     </div>
   );
-}
+};
+
+export default Home;
