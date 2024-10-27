@@ -18,6 +18,7 @@ interface Mappings {
   renameMapping: { [key: string]: string };
   columnsToKeep: string[];
   productNameMapping: { [key: string]: string };
+  productAgentCommissionMapping: { [key: string]: { [key: string]: number } };
   newColumns: string[];
 }
 
