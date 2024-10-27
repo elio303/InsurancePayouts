@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import * as dfd from "danfojs";
 import * as XLSX from "xlsx";
@@ -13,15 +13,51 @@ interface FileData {
   size: number;
 }
 
+interface Mappings {
+  columnsToDrop: string[];
+  renameMapping: { [key: string]: string };
+  columnsToKeep: string[];
+  productNameMapping: { [key: string]: string };
+  newColumns: string[];
+}
+
 export default function Home() {
   const [files, setFiles] = useState<FileData[]>([]);
+  const [mappings, setMappings] = useState<Mappings | null>(null);
+  const [loadingMappings, setLoadingMappings] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function fetchMappings() {
+      try {
+        const response = await fetch('/api/getMappings');
+        const data = await response.json();
+        setMappings(data);
+      } catch (error) {
+        console.error("Failed to load mappings:", error);
+      } finally {
+        setLoadingMappings(false); 
+      }
+    }
+
+    fetchMappings();
+  }, []);
 
   // Drop event handler
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (loadingMappings) {  // Check if mappings are still loading
+      alert("Please wait until mappings have been loaded!");
+      return;
+    }
+
+    if (mappings == null) {
+      alert("Mappings failed to load. Please try again.");
+      return;
+    }
+
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
 
-    let df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0]);
+    let df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0], mappings as Mappings);
     const workbook: XLSX.WorkBook = XLSX.utils.book_new();
 
     // Create sheets
@@ -30,7 +66,7 @@ export default function Home() {
 
     // Write the workbook to file
     XLSX.writeFile(workbook, "grouped_data.xlsx");
-  }, []);
+  }, [loadingMappings, mappings]);
 
   // Map files for display
   const mapFiles = (acceptedFiles: File[]): FileData[] =>
@@ -40,84 +76,24 @@ export default function Home() {
     }));
 
   // Load and clean data from file
-  const loadAndCleanData = async (file: File): Promise<dfd.DataFrame> => {
+  const loadAndCleanData = async (file: File, mappings: Mappings): Promise<dfd.DataFrame> => {
     let df: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
     df = new dfd.DataFrame(df.values.slice(3, -2), { columns: df.values[2] as any });
-    df = df.drop({ columns: columnsToDrop });
-    df.rename(renameMapping, { inplace: true });
-    df = df.loc({ columns: columnsToKeep });
-    df = mapProductNames(df);
-    df = addEmptyColumns(df); // Ensure df is modified with empty columns
+    df = df.drop({ columns: mappings?.columnsToDrop });
+    df.rename(mappings?.renameMapping as any, { inplace: true });
+    df = df.loc({ columns: mappings?.columnsToKeep });
+    df = mapProductNames(df, mappings.productNameMapping);
+    df = addEmptyColumns(df, mappings.newColumns); 
     return df;
   };
 
-  const columnsToDrop: string[] = [
-    "Agency",
-    "Payee ID",
-    "Payee Name",
-    "Income Class",
-    "Writing Agt #",
-    "Writing Agent Level",
-    "Premium Transaction",
-    "Process Date",
-    "Premium Eff Date",
-    "Writing Agent Agency",
-    "Agency Name",
-  ];
-
-  const renameMapping: { [key: string]: string } = {
-    "Product": "Product Name",
-    "Payment Date": "Date",
-    "Writing Agt": "Agent",
-    "Product Co": "Insurance Company",
-  };
-
-  const columnsToKeep: string[] = [
-    "Date",
-    "Insurance Company",
-    "Product Type",
-    "Policy #",
-    "Product Name",
-    "Policy Issue Date",
-    "Insured Name",
-    "Billing Frequency",
-    "Premium Amt",
-    "Comm Rate %",
-    "Gross Comm Earned",
-    "% of particip",
-    "Compensation Type",
-    "Agent",
-    "Transaction Type",
-  ];
-
-  // TODO: Ask about mapping here AND ask about foundation
-  const productNameMapping: { [key: string]: string } = {
-    "LSW Level Term 30-G": "30 Year Term",
-    "LSW Level Term 20-G": "20 Year Term",
-    "LSW Level Term 15-G": "15 Year Term",
-    "LSW Level Term 10-G": "10 Year Term",
-    "FlexLife II": "FlexLife",
-    "FlexLife": "FlexLife",
-    "SummitLife": "SummitLife",
-    "SEC GROWTH": "SEC GROWTH",
-  };
-
-  const mapProductNames = (df: dfd.DataFrame): dfd.DataFrame => {
+  const mapProductNames = (df: dfd.DataFrame, productNameMapping: { [key: string]: string }): dfd.DataFrame => {
     df["Product Name"] = df["Product Name"].map((value: string) => productNameMapping[value] || value);
     return df;
   };
 
   // Add empty columns to DataFrame
-  const addEmptyColumns = (df: dfd.DataFrame): dfd.DataFrame => {
-    const newColumns: string[] = [
-      "--",
-      "Commission %",
-      "Commission Amount",
-      "Commission Paid",
-      "Payment Method",
-      "Payment Date",
-    ];
-
+  const addEmptyColumns = (df: dfd.DataFrame, newColumns: string[]): dfd.DataFrame => {
     newColumns.forEach(column => {
       const emptyArray: string[] = new Array(df.shape[0]).fill(""); // Create an array of empty strings
       df = df.addColumn(column, emptyArray); // Update df with new column
