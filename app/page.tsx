@@ -190,6 +190,7 @@ export default function Home() {
       "application/vnd.ms-excel": [".xls"],
     },
     multiple: false,
+    disabled: loadingMappings // Disable dropzone while loading mappings
   });
 
   return (
@@ -200,12 +201,12 @@ export default function Home() {
       <div
         {...getRootProps()}
         className={`w-full max-w-lg p-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-          isDragActive ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-white"
+          isDragActive ? "border-blue-400 bg-blue-50" : loadingMappings ? "border-gray-300 bg-gray-100 cursor-not-allowed" : "border-gray-300 bg-white"
         }`}
       >
         <input {...getInputProps()} />
         <p className="text-center text-gray-600">
-          {isDragActive ? "Drop the files here ..." : "Drag & drop some files here, or click to select files"}
+          {loadingMappings ? "Loading mappings, please wait..." : isDragActive ? "Drop the files here ..." : "Drag & drop some files here, or click to select files"}
         </p>
       </div>
 
