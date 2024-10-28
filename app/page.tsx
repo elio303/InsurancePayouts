@@ -30,6 +30,37 @@ interface Commission {
   amount: number;
 }
 
+const columnNames = {
+  productType: "Product Type",
+  productName: "Product Name",
+  commissionPercentage: "Commission %",
+  commissionOwed: "Commission Owed",
+  agent: "Agent",
+  participationPercentage: "% of particip",
+  premium: "Premium Amt",
+};
+
+const productTypes = {
+  annuity: "Annuity",
+  life: "Life",
+  default: "IUL / Permanent",
+};
+
+const earningsReportName = {
+  prefix: "",
+  dateFormat: "MMDDYYYY",
+};
+
+const acceptedFileFormats = {
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+  "application/vnd.ms-excel": [".xls"],
+};
+
+const excelCellFormats = {
+  money: "$#,##0.00",
+  percent: "0.0%",
+};
+
 const Home: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [mappings, setMappings] = useState<Mappings | null>(null);
@@ -85,16 +116,27 @@ const Home: React.FC = () => {
   const loadAndCleanData = async (file: File, mappings: Mappings): Promise<dfd.DataFrame> => {
     let df: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
     df = new dfd.DataFrame(df.values.slice(2, -2), { columns: df.values[1] as any })
-      .drop({ columns: mappings.columnsToDrop });
+    df = df.drop({ columns: mappings.columnsToDrop });
     df.rename(mappings.renameMapping, { inplace: true });
     df = df.loc({ columns: mappings.columnsToKeep });
-
-    return addEmptyColumns(mapProductNames(df, mappings.productNameMapping), mappings.newColumns);
+    df = mapProductNames(df, mappings.productNameMapping);
+    df = addEmptyColumns(df, mappings.newColumns);
+    return df;
   };
 
   // Map product names according to mapping
   const mapProductNames = (df: dfd.DataFrame, productNameMapping: { [key: string]: string }): dfd.DataFrame => {
-    df["Product Name"] = df["Product Name"].map((value: string) => productNameMapping[value] || value);
+    df[columnNames.productName] = df[columnNames.productName].map((value: string, index: number) => {
+      if (productNameMapping[value]) {
+        return productNameMapping[value];
+      }
+
+      if (df[columnNames.productType].values[index] === productTypes.annuity) {
+        return value;
+      }
+
+      return "IUL / Permanent";
+    });
     return df;
   };
 
@@ -115,13 +157,13 @@ const Home: React.FC = () => {
     annuityCommissionPercentage: number
   ): dfd.DataFrame => {
     const indices = {
-      productType: getColumnIndex("Product Type", df),
-      productName: getColumnIndex("Product Name", df),
-      agentName: getColumnIndex("Agent", df),
-      participation: getColumnIndex("% of particip", df),
-      premium: getColumnIndex("Premium Amt", df),
-      commissionPercentage: getColumnIndex("Commission %", df),
-      commissionOwed: getColumnIndex("Commission Owed", df),
+      productType: getColumnIndex(columnNames.productType, df),
+      productName: getColumnIndex(columnNames.productName, df),
+      agentName: getColumnIndex(columnNames.agent, df),
+      participation: getColumnIndex(columnNames.participationPercentage, df),
+      premium: getColumnIndex(columnNames.premium, df),
+      commissionPercentage: getColumnIndex(columnNames.commissionPercentage, df),
+      commissionOwed: getColumnIndex(columnNames.commissionOwed, df),
     };
 
     const commissions: Commission[] = df.values.map((_, i) => {
@@ -139,17 +181,17 @@ const Home: React.FC = () => {
       }
 
       switch (productType) {
-        case "Life":
+        case productTypes.life:
           return calculateLifeCommission(productAgentCommissionMapping, productName, agent, participation, premium);
-        case "Annuity":
+        case productTypes.annuity:
           return calculateAnnuityCommission(annuityCommissionPercentage, participation, premium);
         default:
           return { percentage: 0, amount: 0 };
       }
     });
 
-    df.addColumn("Commission %", commissions.map(c => c.percentage), { inplace: true });
-    df.addColumn("Commission Owed", commissions.map(c => c.amount), { inplace: true });
+    df.addColumn(columnNames.commissionPercentage, commissions.map(c => c.percentage), { inplace: true });
+    df.addColumn(columnNames.commissionOwed, commissions.map(c => c.amount), { inplace: true });
     
     return df;
   };
@@ -181,8 +223,8 @@ const Home: React.FC = () => {
 
   // Create grouped sheets in the workbook
   const createGroupedSheets = (workbook: XLSX.WorkBook, df: dfd.DataFrame): void => {
-    const grouped: Groupby = df.groupby(["Agent"]) as Groupby;
-    const uniqueAgents: string[] = df["Agent"].unique().values;
+    const grouped: Groupby = df.groupby([columnNames.agent]) as Groupby;
+    const uniqueAgents: string[] = df[columnNames.agent].unique().values;
 
     uniqueAgents.forEach(agent => {
       const agentGroup: dfd.DataFrame = grouped.getGroup([agent]).loc({ columns: df.columns });
@@ -198,8 +240,8 @@ const Home: React.FC = () => {
   // Create earnings report sheet
   const createEarningsReportSheet = (workbook: XLSX.WorkBook, df: dfd.DataFrame): void => {
     const emptyRowsDf: dfd.DataFrame = createEmptyRows(df);
-    const grouped: Groupby = df.groupby(["Agent"]) as Groupby;
-    const uniqueAgents: string[] = df["Agent"].unique().values;
+    const grouped: Groupby = df.groupby([columnNames.agent]) as Groupby;
+    const uniqueAgents: string[] = df[columnNames.agent].unique().values;
 
     uniqueAgents.forEach(agent => {
       const agentGroup: dfd.DataFrame = grouped.getGroup([agent]).loc({ columns: df.columns });
@@ -212,23 +254,23 @@ const Home: React.FC = () => {
 
       const rowCount = df.values.length;
       const indices = {
-        commissionPercentage: getColumnIndex("Commission %", df),
-        commissionOwed: getColumnIndex("Commission Owed", df),
+        commissionPercentage: getColumnIndex(columnNames.commissionPercentage, df),
+        commissionOwed: getColumnIndex(columnNames.commissionOwed, df),
       };
   
       for (let row = 1; row <= rowCount + 1; row++) {
         const commissionOwedCellAddress = XLSX.utils.encode_cell({ c: indices.commissionOwed, r: row });
         const commissionPercentageCellAddress = XLSX.utils.encode_cell({ c: indices.commissionPercentage, r: row });
         if (earningsReportSheet[commissionOwedCellAddress]) {
-          earningsReportSheet[commissionOwedCellAddress].z = '$#,##0.00';
+          earningsReportSheet[commissionOwedCellAddress].z = excelCellFormats.money;
         }
         if (earningsReportSheet[commissionPercentageCellAddress]) {
-          earningsReportSheet[commissionPercentageCellAddress].z = '0.0%'; 
+          earningsReportSheet[commissionPercentageCellAddress].z = excelCellFormats.percent; 
         }
       }
 
-      const formattedDate: string = dayjs().format("MMDDYYYY");
-      XLSX.utils.book_append_sheet(workbook, earningsReportSheet, `EarningsReport_${formattedDate}`);
+      const formattedDate: string = dayjs().format(earningsReportName.dateFormat);
+      XLSX.utils.book_append_sheet(workbook, earningsReportSheet, `${earningsReportName.prefix}_${formattedDate}`);
       resizeColumns(earningsReportSheet, earningsReportJson, Object.keys(earningsReportJson[0]));
       workbook.SheetNames = [workbook.SheetNames.pop() as string, ...workbook.SheetNames];
     }
@@ -263,10 +305,7 @@ const Home: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-      "application/vnd.ms-excel": [".xls"],
-    },
+    accept: acceptedFileFormats,
     multiple: false,
     disabled: loadingMappings
   });
