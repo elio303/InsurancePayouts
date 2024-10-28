@@ -84,7 +84,7 @@ const Home: React.FC = () => {
   // Load and clean data from Excel file
   const loadAndCleanData = async (file: File, mappings: Mappings): Promise<dfd.DataFrame> => {
     let df: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
-    df = new dfd.DataFrame(df.values.slice(3, -2), { columns: df.values[2] as any })
+    df = new dfd.DataFrame(df.values.slice(2, -2), { columns: df.values[1] as any })
       .drop({ columns: mappings.columnsToDrop });
     df.rename(mappings.renameMapping, { inplace: true });
     df = df.loc({ columns: mappings.columnsToKeep });
