@@ -233,6 +233,12 @@ const Home: React.FC = () => {
       const agentGroupJson = dfd.toJSON(agentGroup);
       if (Array.isArray(agentGroupJson)) {
         const worksheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(agentGroupJson);
+        formatColumn(df, worksheet, columnNames.commissionOwed, excelCellFormats.money);
+        formatColumn(df, worksheet, columnNames.commissionPercentage, excelCellFormats.percent);
+        formatColumn(df, worksheet, columnNames.premium, excelCellFormats.money);
+        formatColumn(df, worksheet, columnNames.commissionRatePercentage, excelCellFormats.percent);
+        formatColumn(df, worksheet, columnNames.grossCommissionEarned, excelCellFormats.money);
+        formatColumn(df, worksheet, columnNames.participationPercentage, excelCellFormats.percent);
         XLSX.utils.book_append_sheet(workbook, worksheet, agent);
         resizeColumns(worksheet, agentGroupJson, Object.keys(agentGroupJson[0]));
       }
@@ -256,7 +262,6 @@ const Home: React.FC = () => {
   
       formatColumn(df, earningsReportSheet, columnNames.commissionOwed, excelCellFormats.money);
       formatColumn(df, earningsReportSheet, columnNames.commissionPercentage, excelCellFormats.percent);
-      
       formatColumn(df, earningsReportSheet, columnNames.premium, excelCellFormats.money);
       formatColumn(df, earningsReportSheet, columnNames.commissionRatePercentage, excelCellFormats.percent);
       formatColumn(df, earningsReportSheet, columnNames.grossCommissionEarned, excelCellFormats.money);
