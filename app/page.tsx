@@ -36,8 +36,10 @@ const columnNames = {
   commissionPercentage: "Commission %",
   commissionOwed: "Commission Owed",
   agent: "Agent",
-  participationPercentage: "% of particip",
   premium: "Premium Amt",
+  commissionRatePercentage: "Comm Rate %",
+  grossCommissionEarned: "Gross Comm Earned",
+  participationPercentage: "% of particip",
 };
 
 const productTypes = {
@@ -251,29 +253,32 @@ const Home: React.FC = () => {
     const earningsReportJson = dfd.toJSON(df);
     if (Array.isArray(earningsReportJson)) {
       const earningsReportSheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(earningsReportJson);
-
-      const rowCount = df.values.length;
-      const indices = {
-        commissionPercentage: getColumnIndex(columnNames.commissionPercentage, df),
-        commissionOwed: getColumnIndex(columnNames.commissionOwed, df),
-      };
   
-      for (let row = 1; row <= rowCount + 1; row++) {
-        const commissionOwedCellAddress = XLSX.utils.encode_cell({ c: indices.commissionOwed, r: row });
-        const commissionPercentageCellAddress = XLSX.utils.encode_cell({ c: indices.commissionPercentage, r: row });
-        if (earningsReportSheet[commissionOwedCellAddress]) {
-          earningsReportSheet[commissionOwedCellAddress].z = excelCellFormats.money;
-        }
-        if (earningsReportSheet[commissionPercentageCellAddress]) {
-          earningsReportSheet[commissionPercentageCellAddress].z = excelCellFormats.percent; 
-        }
-      }
-
+      formatColumn(df, earningsReportSheet, columnNames.commissionOwed, excelCellFormats.money);
+      formatColumn(df, earningsReportSheet, columnNames.commissionPercentage, excelCellFormats.percent);
+      
+      formatColumn(df, earningsReportSheet, columnNames.premium, excelCellFormats.money);
+      formatColumn(df, earningsReportSheet, columnNames.commissionRatePercentage, excelCellFormats.percent);
+      formatColumn(df, earningsReportSheet, columnNames.grossCommissionEarned, excelCellFormats.money);
+      formatColumn(df, earningsReportSheet, columnNames.participationPercentage, excelCellFormats.percent);
+      
       const formattedDate: string = dayjs().format(earningsReportName.dateFormat);
       XLSX.utils.book_append_sheet(workbook, earningsReportSheet, `${earningsReportName.prefix}_${formattedDate}`);
       resizeColumns(earningsReportSheet, earningsReportJson, Object.keys(earningsReportJson[0]));
       workbook.SheetNames = [workbook.SheetNames.pop() as string, ...workbook.SheetNames];
     }
+  };
+
+  const formatColumn = (df: dfd.DataFrame, sheet: XLSX.WorkSheet, columnName: string, format: string) => {
+    const rowCount = df.values.length;
+    const columnIndex = getColumnIndex(columnName, df);
+  
+      for (let row = 1; row <= rowCount + 1; row++) {
+        const cell = XLSX.utils.encode_cell({ c: columnIndex, r: row });
+        if (sheet[cell]) {
+          sheet[cell].z = format;
+        }
+      }
   };
 
   // Create empty rows for separation
