@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import * as dfd from "danfojs";
 import * as XLSX from "xlsx";
+import ExcelJS from 'exceljs';
 import dayjs from "dayjs";
 import Groupby from "danfojs/dist/danfojs-base/aggregators/groupby";
 import { DataFrame } from "danfojs/dist/danfojs-base";
@@ -40,6 +41,7 @@ const columnNames = {
   commissionRatePercentage: "Comm Rate %",
   grossCommissionEarned: "Gross Comm Earned",
   participationPercentage: "% of particip",
+  compensationType: "Compensation Type",
 };
 
 const productTypes = {
@@ -100,12 +102,13 @@ const Home: React.FC = () => {
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
 
-    const df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0], mappings);
-    const updatedDf = fillCommission(df, mappings.productAgentCommissionMapping, mappings.excludedAgents, mappings.annuityCommissionPercentage);
+    let df: dfd.DataFrame = await loadAndCleanData(acceptedFiles[0], mappings);
+    df = fillCommission(df, mappings.productAgentCommissionMapping, mappings.excludedAgents, mappings.annuityCommissionPercentage);
+    df = cleanCompensationType(df);
 
     const workbook: XLSX.WorkBook = XLSX.utils.book_new();
-    createGroupedSheets(workbook, updatedDf);
-    createEarningsReportSheet(workbook, updatedDf);
+    createGroupedSheets(workbook, df);
+    createEarningsReportSheet(workbook, df);
     
     XLSX.writeFile(workbook, "grouped_data.xlsx");
   }, [loadingMappings, mappings]);
@@ -150,6 +153,19 @@ const Home: React.FC = () => {
     });
     return df;
   };
+
+  const cleanCompensationType = (df: dfd.DataFrame) => {
+    const compensationTypes = df.values.map((_, i) => {
+      const row = df.iloc({ rows: [i] }).values[0] as any[];
+      const compensationTypeIndex = getColumnIndex(columnNames.compensationType, df);
+      const sanitized = row[compensationTypeIndex].replace("Compensation", "");
+      return sanitized;
+    });
+
+    df.addColumn(columnNames.compensationType, compensationTypes, { inplace: true });
+
+    return df;
+  }
 
   // Fill commission based on the mappings
   const fillCommission = (
@@ -239,7 +255,9 @@ const Home: React.FC = () => {
         formatColumn(df, worksheet, columnNames.commissionRatePercentage, excelCellFormats.percent);
         formatColumn(df, worksheet, columnNames.grossCommissionEarned, excelCellFormats.money);
         formatColumn(df, worksheet, columnNames.participationPercentage, excelCellFormats.percent);
+        
         resizeColumns(worksheet, agentGroupJson, Object.keys(agentGroupJson[0]));
+        
         XLSX.utils.book_append_sheet(workbook, worksheet, agent);
       }
     });
@@ -267,9 +285,10 @@ const Home: React.FC = () => {
       formatColumn(df, earningsReportSheet, columnNames.grossCommissionEarned, excelCellFormats.money);
       formatColumn(df, earningsReportSheet, columnNames.participationPercentage, excelCellFormats.percent);
       
+      resizeColumns(earningsReportSheet, earningsReportJson, Object.keys(earningsReportJson[0]));
+      
       const formattedDate: string = dayjs().format(earningsReportName.dateFormat);
       XLSX.utils.book_append_sheet(workbook, earningsReportSheet, `${earningsReportName.prefix}_${formattedDate}`);
-      resizeColumns(earningsReportSheet, earningsReportJson, Object.keys(earningsReportJson[0]));
       workbook.SheetNames = [workbook.SheetNames.pop() as string, ...workbook.SheetNames];
     }
   };
