@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useDropzone } from "react-dropzone";
 import * as dfd from "danfojs";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
@@ -10,6 +9,7 @@ import Groupby from "danfojs/dist/danfojs-base/aggregators/groupby";
 import { DataFrame } from "danfojs/dist/danfojs-base";
 import * as excelConstants from './constants/excelConstants';
 import processDataFrame from './modules/DataFrameProcessor';
+import FileUploader from "./components/FileUploader";
 
 interface FileData {
   name: string;
@@ -25,7 +25,6 @@ interface Mappings {
 }
 
 const Home: React.FC = () => {
-  const [files, setFiles] = useState<FileData[]>([]);
   const [mappings, setMappings] = useState<Mappings | null>(null);
   const [loadingMappings, setLoadingMappings] = useState<boolean>(true);
 
@@ -47,7 +46,7 @@ const Home: React.FC = () => {
   }, []);
 
   // Handle file drop
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+  const onFilesUploaded = useCallback(async (file: File) => {
     if (loadingMappings) {
       alert("Please wait until mappings have been loaded!");
       return;
@@ -58,11 +57,7 @@ const Home: React.FC = () => {
       return;
     }
 
-    const mappedFiles = mapFiles(acceptedFiles);
-    setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
-
-    const dataFrame: dfd.DataFrame = await dfd.readExcel(acceptedFiles[0]) as dfd.DataFrame;
-
+    const dataFrame: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
     const modifiedDataFrame = processDataFrame(dataFrame, mappings);
 
     const workbook: XLSX.WorkBook = XLSX.utils.book_new();
@@ -71,10 +66,6 @@ const Home: React.FC = () => {
     
     XLSX.writeFile(workbook, "grouped_data.xlsx");
   }, [loadingMappings, mappings]);
-
-  // Map accepted files to FileData structure
-  const mapFiles = (acceptedFiles: File[]): FileData[] => 
-    acceptedFiles.map(file => ({ name: file.name, size: file.size }));
 
   // Get column index by column name
   const getColumnIndex = (columnName: string, df: dfd.DataFrame): number => {
@@ -175,40 +166,9 @@ const Home: React.FC = () => {
     worksheet["!cols"] = headers.map(() => ({ wpx: (maxColumnWidth + 2) * 7 }));
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: excelConstants.acceptedFileFormats,
-    multiple: false,
-    disabled: loadingMappings
-  });
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-      <h1 className="text-3xl font-semibold text-gray-800 mb-6">Drag and Drop File Upload</h1>
-
-      <div
-        {...getRootProps()}
-        className={`w-full max-w-lg p-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-          isDragActive ? "border-blue-400 bg-blue-50" : loadingMappings ? "border-gray-300 bg-gray-100 cursor-not-allowed" : "border-gray-300 bg-white"
-        }`}
-      >
-        <input {...getInputProps()} />
-        <p className="text-center text-gray-600">
-          {loadingMappings ? "Loading mappings, please wait..." : isDragActive ? "Drop the files here ..." : "Drag & drop some files here, or click to select files"}
-        </p>
-      </div>
-
-      <div className="mt-6 w-full max-w-lg">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">Uploaded Files</h2>
-        <ul className="space-y-3">
-          {files.map((file, index) => (
-            <li key={index} className="flex justify-between items-center p-3 bg-gray-100 rounded-md border">
-              <span className="text-gray-700">{file.name}</span>
-              <span className="text-gray-500 text-sm">{Math.round(file.size / 1024)} KB</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div>
+      <FileUploader loading={loadingMappings} onFilesUpdate={onFilesUploaded} />
     </div>
   );
 };
