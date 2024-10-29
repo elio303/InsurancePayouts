@@ -32,11 +32,11 @@ interface Commission {
 
 const columnNames = {
   productType: "Product Type",
-  productName: "Product Name",
+  productName: "Product",
   commissionPercentage: "Commission %",
   commissionOwed: "Commission Owed",
   agent: "Agent",
-  premium: "Premium Amt",
+  premium: "Premium",
   commissionRatePercentage: "Comm Rate %",
   grossCommissionEarned: "Gross Comm Earned",
   participationPercentage: "% of particip",
@@ -239,8 +239,8 @@ const Home: React.FC = () => {
         formatColumn(df, worksheet, columnNames.commissionRatePercentage, excelCellFormats.percent);
         formatColumn(df, worksheet, columnNames.grossCommissionEarned, excelCellFormats.money);
         formatColumn(df, worksheet, columnNames.participationPercentage, excelCellFormats.percent);
-        XLSX.utils.book_append_sheet(workbook, worksheet, agent);
         resizeColumns(worksheet, agentGroupJson, Object.keys(agentGroupJson[0]));
+        XLSX.utils.book_append_sheet(workbook, worksheet, agent);
       }
     });
   };
@@ -290,27 +290,28 @@ const Home: React.FC = () => {
   const createEmptyRows = (df: dfd.DataFrame): dfd.DataFrame => {
     const emptyRow = Object.fromEntries(df.columns.map(column => [column, ""]));
     const headerRow = Object.fromEntries(df.columns.map(column => [column, column]));
-    return new dfd.DataFrame([emptyRow, emptyRow, headerRow]);
+    return new dfd.DataFrame([emptyRow, emptyRow, emptyRow, headerRow]);
   };
 
-  // Resize columns based on content
   const resizeColumns = (worksheet: XLSX.WorkSheet, jsonData: any[], headers: string[]) => {
-    const columnWidths: number[] = [];
+    // Initialize the maximum width
+    let maxColumnWidth = 0;
 
-    headers.forEach((header, index) => {
-      const headerLength = header.length;
-      columnWidths[index] = Math.max(columnWidths[index] || 0, headerLength);
+    // Determine the maximum width from the headers
+    headers.forEach(header => {
+        maxColumnWidth = Math.max(maxColumnWidth, header.length);
     });
 
+    // Determine the maximum width from each cell's content in jsonData
     jsonData.forEach(row => {
-      Object.keys(row).forEach((key, index) => {
-        const cellValue = row[key]?.toString() || "";
-        const cellLength = cellValue.length;
-        columnWidths[index] = Math.max(columnWidths[index] || 0, cellLength);
-      });
+        Object.values(row).forEach(cellValue => {
+            const cellLength = cellValue?.toString().length || 0;
+            maxColumnWidth = Math.max(maxColumnWidth, cellLength);
+        });
     });
 
-    worksheet["!cols"] = columnWidths.map(width => ({ wpx: (width + 2) * 7 }));
+    // Apply the maximum width to all columns in the worksheet
+    worksheet["!cols"] = headers.map(() => ({ wpx: (maxColumnWidth + 2) * 7 }));
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
