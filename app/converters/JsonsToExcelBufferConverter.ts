@@ -22,14 +22,7 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
 
 const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCount: number) => {
     const headerRow = worksheet.getRow(1);
-    headerRow.eachCell(cell => {
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF4A90E2' } 
-        };
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; 
-    });
+    colorHeaderRow(headerRow);
 
     let previousRow = null;
     let alternator = 0;
@@ -42,24 +35,14 @@ const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCou
         const isCurrentRowFirst = rowIndex === 2;
 
         if (isPreviousRowEmpty && isCurrentRowFilled && !isCurrentRowFirst) {
-            row.eachCell(cell => {
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FF4A90E2' } 
-                };
-                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; 
-            });
+            colorHeaderRow(row);
             alternator = 0;
         } else if (isCurrentRowFilled) {
-            row.eachCell(cell => {
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: isEvenRow ? 'FFE0F7FF' : 'FFB3E5FC' }
-                };
-                cell.font = { color: { argb: 'FF333333' } }; 
-            });
+            if (isEvenRow) {
+                colorEvenRow(row);
+            } else {
+                colorOddRow(row);
+            }
             alternator++;
         }
 
@@ -75,6 +58,29 @@ const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCou
     });
 
     setUniformColumnWidths(worksheet);
+};
+
+const colorRow = (row: ExcelJS.Row, cellColor: string, fontColor: string) => {
+    row.eachCell(cell => {
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: cellColor } 
+        };
+        cell.font = { bold: true, color: { argb: fontColor } }; 
+    });
+};
+
+const colorHeaderRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.darkBlue, excelConstants.fontColors.white);
+};
+
+const colorEvenRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.lightestBlue, excelConstants.fontColors.black);
+};
+
+const colorOddRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.lighterBlue, excelConstants.fontColors.black);
 };
 
 const formatColumn = (worksheet: ExcelJS.Worksheet, columnIndex: number, rowCount: number, format: string) => {

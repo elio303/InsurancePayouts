@@ -117,6 +117,17 @@ const columnFormatMapping = {
   [columnNames.commissionRatePercentage]: excelCellFormats.percent,
 };
 
+const cellColors = {
+  darkBlue: "FF4A90E2",
+  lighterBlue: "FFB3E5FC",
+  lightestBlue: "FFE0F7FF",
+};
+
+const fontColors = {
+  white: "FFFFFFFF",
+  black: "FF333333",
+};
+
 export {
   columnNames,
   earningsReportName,
@@ -127,4 +138,6 @@ export {
   columnsToKeep,
   newColumns,
   columnFormatMapping,
+  cellColors,
+  fontColors,
 };
