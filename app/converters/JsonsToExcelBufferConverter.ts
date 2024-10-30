@@ -21,6 +21,17 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
 };
 
 const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCount: number) => {
+    // Apply blue background to header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell(cell => {
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFADD8E6' } // Light blue background color
+        };
+        cell.font = { bold: true, color: { argb: 'FF0000FF' } }; // Set font color to blue and make bold
+    });
+
     Object.keys(excelConstants.columnFormatMapping).forEach((columnName: string) => {
         const columnIndex = columns.indexOf(columnName);
         const format = excelConstants.columnFormatMapping[columnName];
