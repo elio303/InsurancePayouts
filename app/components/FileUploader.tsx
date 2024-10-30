@@ -1,9 +1,9 @@
 
-"use client";
+'use client';
 
-import React, { useCallback, useEffect, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { acceptedFileFormats } from "../constants/excelConstants";
+import React, { useCallback, useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { acceptedFileFormats } from '@/app/constants/excelConstants';
 
 interface FileData {
   name: string;

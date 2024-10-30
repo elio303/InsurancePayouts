@@ -1,6 +1,6 @@
 
 import * as dfd from "danfojs";
-import * as excelConstants from '../constants/excelConstants';
+import * as excelConstants from '@/app/constants/excelConstants';
 import {
     productNameMapping,
     productAgentCommissionMapping,

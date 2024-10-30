@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useCallback } from "react";
-import FileUploader from "./components/FileUploader";
+import FileUploader from "@/app/components/FileUploader";
 
 const Home: React.FC = () => {
   const getFile = async (file: File): Promise<Blob | undefined> => {

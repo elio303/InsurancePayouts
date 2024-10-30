@@ -1,62 +1,56 @@
-import * as XLSX from "xlsx";
-import * as excelConstants from '../constants/excelConstants';
+import ExcelJS from 'exceljs';
+import * as excelConstants from '@/app/constants/excelConstants';
 
 const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
-    const workbook: XLSX.WorkBook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     Object.keys(jsons).forEach(sheetName => {
         const json = jsons[sheetName];
-        const workSheet: XLSX.WorkSheet = XLSX.utils.json_to_sheet(json);
+        const worksheet = workbook.addWorksheet(sheetName);
+
         const columns = Object.keys(json[0]);
-        const rowCount = json.length;
-        formatWorkSheet(workSheet, columns, rowCount);
-        XLSX.utils.book_append_sheet(workbook, workSheet, sheetName);
+        worksheet.columns = columns.map(col => ({ header: col, key: col, width: 20 }));
+
+        json.forEach(row => worksheet.addRow(row));
+
+        formatWorkSheet(worksheet, columns, json.length);
     });
 
-    return XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
 };
 
-const formatWorkSheet = (workSheet: XLSX.WorkSheet, columns: string[], rowCount: number) => {
+const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCount: number) => {
     Object.keys(excelConstants.columnFormatMapping).forEach((columnName: string) => {
-        console.log(columns);
         const columnIndex = columns.indexOf(columnName);
         const format = excelConstants.columnFormatMapping[columnName];
-        formatColumn(
-            workSheet,
-            columnIndex,
-            rowCount,
-            format
-        );
+        if (columnIndex !== -1) {
+            formatColumn(worksheet, columnIndex + 1, rowCount, format); 
+        }
     });
-    setCellWidths(workSheet)
+
+    setUniformColumnWidths(worksheet);
 };
 
-const formatColumn = (workSheet: XLSX.WorkSheet, columnIndex: number, rowCount: number, format: string) => {
-    for (let row = 1; row <= rowCount + 1; row++) {
-        const cell = XLSX.utils.encode_cell({ c: columnIndex, r: row });
-        if (workSheet[cell]) {
-            workSheet[cell].z = format;
-        }
+const formatColumn = (worksheet: ExcelJS.Worksheet, columnIndex: number, rowCount: number, format: string) => {
+    for (let row = 1; row <= rowCount + 1; row++) { 
+        const cell = worksheet.getRow(row).getCell(columnIndex);
+        cell.numFmt = format; 
     }
 };
 
-const setCellWidths = (workSheet: XLSX.WorkSheet): void => {
+const setUniformColumnWidths = (worksheet: ExcelJS.Worksheet): void => {
     let maxContentWidth = 0;
 
-    Object.keys(workSheet).forEach(cellAddress => {
-        if (cellAddress[0] === '!') return;
-        const cell = workSheet[cellAddress];
-        if (cell && cell.v != null) {
-            maxContentWidth = Math.max(maxContentWidth, String(cell.v).length);
-        }
+    worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+            maxContentWidth = Math.max(maxContentWidth, String(cell.value).length);
+        });
     });
 
-    const totalColumns = XLSX.utils.decode_range(workSheet['!ref'] as string).e.c + 1;
-
-    workSheet['!cols'] = Array.from(
-        { length: totalColumns },
-        () => ({ wch: maxContentWidth + 2 })
-    );
+    worksheet.columns.forEach(column => {
+        column.width = maxContentWidth + 2;
+    });
 };
 
 export default {

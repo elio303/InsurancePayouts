@@ -1,7 +1,7 @@
 import * as dfd from "danfojs";
 import Groupby from "danfojs/dist/danfojs-base/aggregators/groupby";
 import { DataFrame } from "danfojs/dist/danfojs-base";
-import * as excelConstants from '../constants/excelConstants';
+import * as excelConstants from '@/app/constants/excelConstants';
 
 const convert = (dataFrame: dfd.DataFrame): { [key: string]: any[] } => {
     return {
