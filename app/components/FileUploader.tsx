@@ -11,13 +11,14 @@ interface FileData {
 
 interface FileUploaderProps {
   loading: boolean;
-  error: string | null; 
+  error: string | null;
   onFilesUpdate: (files: File) => Promise<void>;
 }
 
 const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpdate }) => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File>();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (loading) {
@@ -41,9 +42,14 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
 
   useEffect(() => {
     if (uploadedFile) {
-      onFilesUpdate(uploadedFile).catch(() => {
-        // Handle the error directly in the catch block
-      });
+      onFilesUpdate(uploadedFile)
+        .then(() => {
+          setSuccessMessage(`File ${uploadedFile.name} uploaded successfully!`);
+          setTimeout(() => setSuccessMessage(null), 3000);
+        })
+        .catch(() => {
+          setSuccessMessage(null); 
+        });
     }
   }, [uploadedFile, onFilesUpdate]);
 
@@ -51,6 +57,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 py-10">
       <h1 className="text-4xl font-semibold text-gray-900 mb-6">Insurance Commission File Upload</h1>
       <p className="text-sm text-gray-600 mb-4">Ensure your file is in .xls or .xlsx format to calculate commissions accurately.</p>
+
+      {successMessage && (
+        <div className="bg-green-100 text-green-800 p-4 rounded-md mb-4">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-md mb-4">
+          {error}
+        </div>
+      )}
 
       <div
         {...getRootProps()}
@@ -78,10 +96,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
             ? "Drop your file here ..."
             : "Drag & drop your Excel files here, or click to select files"}
         </p>
-      </div>
-
-      <div className="mt-6 w-full max-w-lg">
-        {error && <p className="text-red-600 text-center">{error}</p>}
       </div>
 
       <div className="mt-8 w-full max-w-lg bg-white rounded-lg shadow border border-gray-300">

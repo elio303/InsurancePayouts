@@ -5,14 +5,14 @@ import FileUploader from "@/app/components/FileUploader";
 
 const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); 
+  const [error, setError] = useState<string | null>(null);
 
   const getFile = async (file: File): Promise<Blob | undefined> => {
     const formData = new FormData();
     formData.append("file", file);
 
     setLoading(true);
-    setError(null); 
+    setError(null);
 
     try {
       const response = await fetch("/api/file", {
@@ -27,7 +27,8 @@ const Home: React.FC = () => {
       return await response.blob();
     } catch (error) {
       console.error("Failed to download file:", error);
-      setError("Failed to upload the file. Please try again."); 
+      setError("Failed to upload the file. Please try again.");
+      return undefined; 
     } finally {
       setLoading(false);
     }
@@ -46,10 +47,8 @@ const Home: React.FC = () => {
   const onFilesUploaded = useCallback(async (file: File) => {
     const blob = await getFile(file);
 
-    if (blob !== undefined) {
+    if (blob) {
       downloadFile(blob);
-    } else {
-      // Handle the error case here
     }
   }, []);
 

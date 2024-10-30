@@ -18,14 +18,18 @@ export async function POST(request: Request) {
     const namedJsons = DataFrameToJsonsConverter.convert(processedDataFrame);
     const outputBuffer = await JsonsToExcelConverter.convert(namedJsons);
 
+    const originalFileName = inputFile.name.replace(/\.[^/.]+$/, "");
+    const downloadFileName = `${originalFileName}_sausage.xlsx`;
+
     return new NextResponse(outputBuffer, {
       headers: {
-        'Content-Disposition': 'attachment; filename="data.xlsx"',
+        'Content-Disposition': `attachment; filename="${downloadFileName}"`,
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error processing file:', error);
-    return NextResponse.json({ error: 'Error processing file' }, { status: 500 });
+    const errorMessage = (error instanceof Error) ? error.message : 'Unknown error occurred';
+    return NextResponse.json({ error: 'Error processing file: ' + errorMessage }, { status: 500 });
   }
 }
