@@ -14,6 +14,16 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
         json.forEach(row => worksheet.addRow(row));
 
         formatWorkSheet(worksheet, columns, json.length);
+        
+        worksheet.views = [
+            {
+                state: 'frozen',
+                xSplit: 0,
+                ySplit: 1,
+                topLeftCell: 'A2',
+                activeCell: 'A2'
+            }
+        ];
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
