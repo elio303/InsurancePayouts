@@ -12,20 +12,22 @@ interface FileData {
 interface FileUploaderProps {
   loading: boolean;
   error: string | null; 
+  fadeOutError: boolean; // Keep this prop
   onFilesUpdate: (files: File) => Promise<void>;
 }
 
-const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpdate }) => {
+const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, fadeOutError, onFilesUpdate }) => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File>();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [fadeOutSuccess, setFadeOutSuccess] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (loading) {
       return;
     }
 
-    setSuccessMessage(null); 
+    setSuccessMessage(null);
 
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
@@ -47,10 +49,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
       onFilesUpdate(uploadedFile)
         .then(() => {
           setSuccessMessage(`File ${uploadedFile.name} uploaded successfully!`);
-          setTimeout(() => setSuccessMessage(null), 3000); 
+          setFadeOutSuccess(false);
+          setTimeout(() => {
+            setFadeOutSuccess(true);
+          }, 4000); 
         })
         .catch(() => {
-          setSuccessMessage(null); 
+          // Error handling, do not call setFadeOutError here
         });
     }
   }, [uploadedFile, onFilesUpdate]);
@@ -61,13 +66,17 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
       <p className="text-sm text-gray-600 mb-4">Ensure your file is in .xls or .xlsx format to calculate commissions accurately.</p>
 
       {successMessage && (
-        <div className="bg-green-100 text-green-800 p-4 rounded-md mb-4">
+        <div
+          className={`bg-green-100 text-green-800 p-4 rounded-md mb-4 transition-opacity duration-1000 ${fadeOutSuccess ? 'opacity-0' : 'opacity-100'}`}
+        >
           {successMessage}
         </div>
       )}
 
       {error && (
-        <div className="bg-red-100 text-red-800 p-4 rounded-md mb-4">
+        <div
+          className={`bg-red-100 text-red-800 p-4 rounded-md mb-4 transition-opacity duration-1000 ${fadeOutError ? 'opacity-0' : 'opacity-100'}`}
+        >
           {error}
         </div>
       )}

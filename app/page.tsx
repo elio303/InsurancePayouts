@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import FileUploader from "@/app/components/FileUploader";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -8,6 +8,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fadeOutError, setFadeOutError] = useState(false);
 
   const getFile = async (file: File): Promise<Blob | undefined> => {
     const formData = new FormData();
@@ -15,6 +16,7 @@ const Home: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    setFadeOutError(false);
 
     try { 
       const response = await fetch("/api/file", {
@@ -30,7 +32,10 @@ const Home: React.FC = () => {
     } catch (error) {
       console.error("Failed to download file:", error);
       setError("Failed to upload the file. Please try again.");
-      setTimeout(() => setError(null), 3000); 
+      setTimeout(() => {
+        setFadeOutError(true); 
+        setTimeout(() => setError(null), 1000);
+      }, 5000); 
       throw error; 
     } finally {
       setLoading(false);
@@ -57,7 +62,12 @@ const Home: React.FC = () => {
 
   return (
     <div>
-      <FileUploader loading={loading} error={error} onFilesUpdate={onFilesUploaded} />
+      <FileUploader 
+        loading={loading} 
+        error={error} 
+        fadeOutError={fadeOutError}
+        onFilesUpdate={onFilesUploaded} 
+      />
       <Analytics />
       <SpeedInsights />
     </div>
