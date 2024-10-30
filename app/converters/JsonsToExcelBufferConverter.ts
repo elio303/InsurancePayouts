@@ -21,16 +21,50 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
 };
 
 const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCount: number) => {
-    // Apply blue background to header row
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell(cell => {
         cell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FFADD8E6' } // Light blue background color
+            fgColor: { argb: 'FF4A90E2' } 
         };
-        cell.font = { bold: true, color: { argb: 'FF0000FF' } }; // Set font color to blue and make bold
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; 
     });
+
+    let previousRow = null;
+    let alternator = 0;
+    for (let rowIndex = 2; rowIndex <= rowCount + 1; rowIndex++) {
+        const row = worksheet.getRow(rowIndex);
+        const isEvenRow = alternator % 2 === 0;
+
+        const isPreviousRowEmpty = !previousRow?.getCell(1).value;
+        const isCurrentRowFilled = row?.getCell(1).value;
+        const isCurrentRowFirst = rowIndex === 2;
+
+        if (isPreviousRowEmpty && isCurrentRowFilled && !isCurrentRowFirst) {
+            row.eachCell(cell => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF4A90E2' } 
+                };
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; 
+            });
+            alternator = 0;
+        } else if (isCurrentRowFilled) {
+            row.eachCell(cell => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: isEvenRow ? 'FFE0F7FF' : 'FFB3E5FC' }
+                };
+                cell.font = { color: { argb: 'FF333333' } }; 
+            });
+            alternator++;
+        }
+
+        previousRow = row;
+    }
 
     Object.keys(excelConstants.columnFormatMapping).forEach((columnName: string) => {
         const columnIndex = columns.indexOf(columnName);
