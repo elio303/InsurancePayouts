@@ -11,7 +11,7 @@ interface FileData {
 
 interface FileUploaderProps {
   loading: boolean;
-  error: string | null;
+  error: string | null; 
   onFilesUpdate: (files: File) => Promise<void>;
 }
 
@@ -24,6 +24,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
     if (loading) {
       return;
     }
+
+    setSuccessMessage(null); 
 
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
@@ -45,7 +47,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpda
       onFilesUpdate(uploadedFile)
         .then(() => {
           setSuccessMessage(`File ${uploadedFile.name} uploaded successfully!`);
-          setTimeout(() => setSuccessMessage(null), 3000);
+          setTimeout(() => setSuccessMessage(null), 3000); 
         })
         .catch(() => {
           setSuccessMessage(null); 

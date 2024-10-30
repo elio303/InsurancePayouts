@@ -2,6 +2,8 @@
 
 import React, { useCallback, useState } from "react";
 import FileUploader from "@/app/components/FileUploader";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -14,7 +16,7 @@ const Home: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    try {
+    try { 
       const response = await fetch("/api/file", {
         method: "POST",
         body: formData,
@@ -28,7 +30,8 @@ const Home: React.FC = () => {
     } catch (error) {
       console.error("Failed to download file:", error);
       setError("Failed to upload the file. Please try again.");
-      return undefined; 
+      setTimeout(() => setError(null), 3000); 
+      throw error; 
     } finally {
       setLoading(false);
     }
@@ -55,7 +58,8 @@ const Home: React.FC = () => {
   return (
     <div>
       <FileUploader loading={loading} error={error} onFilesUpdate={onFilesUploaded} />
-      {loading && <div className="text-center">Loading...</div>}
+      <Analytics />
+      <SpeedInsights />
     </div>
   );
 };
