@@ -1,62 +1,54 @@
 
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import * as dfd from "danfojs";
-import processDataFrame from './modules/DataFrameProcessor';
+import React, { useCallback } from "react";
 import FileUploader from "./components/FileUploader";
-import createExcelFile from "./modules/ExcelProccessor";
-
-interface Mappings {
-  productNameMapping: { [key: string]: string };
-  productAgentCommissionMapping: { [key: string]: { [key: string]: number } };
-  excludedAgents: string[];
-  productTypes: { [key: string]: string };
-  annuityCommissionPercentage: number;
-}
 
 const Home: React.FC = () => {
-  const [mappings, setMappings] = useState<Mappings | null>(null);
-  const [loadingMappings, setLoadingMappings] = useState<boolean>(true);
+  const getFile = async (file: File): Promise<Blob | undefined> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('/api/file', {
+        method: 'POST',
+        body: formData,
+      });
 
-  // Fetch mappings on component mount
-  useEffect(() => {
-    const fetchMappings = async () => {
-      try {
-        const response = await fetch('/api/getMappings');
-        const data = await response.json();
-        setMappings(data);
-      } catch (error) {
-        console.error("Failed to load mappings:", error);
-      } finally {
-        setLoadingMappings(false);
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
       }
-    };
 
-    fetchMappings();
-  }, []);
+      return await response.blob();
+      
+    } catch (error) {
+      console.error("Failed to download file:", error);
+    }
+  };
 
-  // Handle file drop
+  const downloadFile = (blob: Blob) => {
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', 'data.xlsx'); 
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   const onFilesUploaded = useCallback(async (file: File) => {
-    if (loadingMappings) {
-      alert("Please wait until mappings have been loaded!");
-      return;
+    const blob = await getFile(file);
+
+    if (blob !== undefined) {
+      downloadFile(blob);
+    } else {
+      // Put some handling here
     }
-
-    if (!mappings) {
-      alert("Mappings failed to load. Please try again.");
-      return;
-    }
-
-    const dataFrame: dfd.DataFrame = await dfd.readExcel(file) as dfd.DataFrame;
-    const modifiedDataFrame = processDataFrame(dataFrame, mappings);
-
-    createExcelFile(modifiedDataFrame);
-  }, [loadingMappings, mappings]);
+  }, []);
 
   return (
     <div>
-      <FileUploader loading={loadingMappings} onFilesUpdate={onFilesUploaded} />
+      <FileUploader loading={false} onFilesUpdate={onFilesUploaded} />
     </div>
   );
 };

@@ -108,6 +108,15 @@ const newColumns = [
   columnNames.paymentDate,
 ];
 
+const columnFormatMapping = {
+  [columnNames.premium]: excelCellFormats.money,
+  [columnNames.commissionOwed]: excelCellFormats.money,
+  [columnNames.grossCommissionEarned]: excelCellFormats.money,
+  [columnNames.commissionPercentage]: excelCellFormats.percent,
+  [columnNames.participationPercentage]: excelCellFormats.percent,
+  [columnNames.commissionRatePercentage]: excelCellFormats.percent,
+};
+
 export {
   columnNames,
   earningsReportName,
@@ -117,4 +126,5 @@ export {
   renameMapping,
   columnsToKeep,
   newColumns,
+  columnFormatMapping,
 };

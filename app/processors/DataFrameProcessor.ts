@@ -1,31 +1,21 @@
 
 import * as dfd from "danfojs";
 import * as excelConstants from '../constants/excelConstants';
-
-interface Mappings {
-  productNameMapping: { [key: string]: string };
-  productAgentCommissionMapping: { [key: string]: { [key: string]: number } };
-  excludedAgents: string[];
-  productTypes: { [key: string]: string };
-  annuityCommissionPercentage: number;
-}
+import {
+    productNameMapping,
+    productAgentCommissionMapping,
+    excludedAgents,
+    annuityCommissionPercentage,
+    productTypes,
+} from '../providers/MappingsProvider';
 
 interface Commission {
   percentage: number;
   amount: number;
 }
 
-const processDataFrame = (dataFrame: dfd.DataFrame, mappings: Mappings): dfd.DataFrame => {
-    const {
-        productNameMapping,
-        productAgentCommissionMapping,
-        excludedAgents,
-        annuityCommissionPercentage,
-        productTypes,
-    } = mappings;
-
+const process = (dataFrame: dfd.DataFrame): dfd.DataFrame => {
     let modifiedDataFrame: dfd.DataFrame = loadAndCleanData(dataFrame, productNameMapping, productTypes);
-
     modifiedDataFrame = fillCommission(
         modifiedDataFrame,
         productAgentCommissionMapping,
@@ -33,9 +23,7 @@ const processDataFrame = (dataFrame: dfd.DataFrame, mappings: Mappings): dfd.Dat
         annuityCommissionPercentage,
         productTypes
     );
-
     modifiedDataFrame = cleanCompensationType(modifiedDataFrame);
-
     return modifiedDataFrame;
 };
 
@@ -44,7 +32,7 @@ const loadAndCleanData = (
     productNameMapping: { [key: string]: string },
     productTypes: { [key: string]: string },
 ): dfd.DataFrame => {
-    let modifiedDataFrame = new dfd.DataFrame(dataFrame.values.slice(2, -2), { columns: dataFrame.values[1] as any })
+    let modifiedDataFrame = new dfd.DataFrame(dataFrame.values.slice(5, -5), { columns: dataFrame.values[4] as any })
     modifiedDataFrame = modifiedDataFrame.drop({ columns: excelConstants.columnsToDrop });
     modifiedDataFrame.rename(excelConstants.renameMapping, { inplace: true });
     modifiedDataFrame = modifiedDataFrame.loc({ columns: excelConstants.columnsToKeep });
@@ -162,4 +150,6 @@ const getColumnIndex = (columnName: string, df: dfd.DataFrame): number => {
     return df.columns.findIndex(currentColumnName => currentColumnName === columnName);
 };
 
-export default processDataFrame;
+export default {
+    process,
+};
