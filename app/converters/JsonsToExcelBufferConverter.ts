@@ -68,6 +68,7 @@ const colorRow = (row: ExcelJS.Row, cellColor: string, fontColor: string) => {
             fgColor: { argb: cellColor } 
         };
         cell.font = { bold: true, color: { argb: fontColor } }; 
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
 };
 
@@ -87,6 +88,7 @@ const formatColumn = (worksheet: ExcelJS.Worksheet, columnIndex: number, rowCoun
     for (let row = 1; row <= rowCount + 1; row++) { 
         const cell = worksheet.getRow(row).getCell(columnIndex);
         cell.numFmt = format; 
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
     }
 };
 
