@@ -11,25 +11,22 @@ interface FileData {
 
 interface FileUploaderProps {
   loading: boolean;
+  error: string | null; 
   onFilesUpdate: (files: File) => Promise<void>;
 }
 
-const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) => {
+const FileUploader: React.FC<FileUploaderProps> = ({ loading, error, onFilesUpdate }) => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File>();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (loading) {
-      setError("Please wait while the current operation is in progress!");
       return;
     }
 
     const mappedFiles = mapFiles(acceptedFiles);
     setFiles(prevFiles => [...prevFiles, ...mappedFiles]);
     setUploadedFile(acceptedFiles[0]);
-    setSuccess(null);
   }, [loading]);
 
   const mapFiles = (acceptedFiles: File[]): FileData[] =>
@@ -44,9 +41,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
 
   useEffect(() => {
     if (uploadedFile) {
-      onFilesUpdate(uploadedFile)
-        .then(() => setSuccess("File uploaded successfully!"))
-        .catch(() => setError("Failed to upload the file. Please try again."));
+      onFilesUpdate(uploadedFile).catch(() => {
+        // Handle the error directly in the catch block
+      });
     }
   }, [uploadedFile, onFilesUpdate]);
 
@@ -85,7 +82,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
 
       <div className="mt-6 w-full max-w-lg">
         {error && <p className="text-red-600 text-center">{error}</p>}
-        {success && <p className="text-green-600 text-center">{success}</p>}
       </div>
 
       <div className="mt-8 w-full max-w-lg bg-white rounded-lg shadow border border-gray-300">
