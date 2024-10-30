@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,10 +18,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
   const [files, setFiles] = useState<FileData[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File>();
 
-  // Handle file drop
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (loading) {
-      alert("Please wait while we load the file drop component!");
+      alert("Please wait while the current operation is in progress!");
       return;
     }
 
@@ -31,7 +29,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
     setUploadedFile(acceptedFiles[0]);
   }, [loading]);
 
-  // Map accepted files to FileData structure
   const mapFiles = (acceptedFiles: File[]): FileData[] => 
     acceptedFiles.map(file => ({ name: file.name, size: file.size }));
 
@@ -43,7 +40,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
   });
 
   useEffect(() => {
-    uploadedFile && onFilesUpdate(uploadedFile);
+    if (uploadedFile) {
+      onFilesUpdate(uploadedFile);
+    }
   }, [uploadedFile, onFilesUpdate]);
 
   return (
@@ -63,7 +62,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ loading, onFilesUpdate }) =
         <input {...getInputProps()} />
         <p className="text-center text-gray-600">
           {loading
-            ? "Loading mappings, please wait..."
+            ? "Please wait while we process your request..."
             : isDragActive
             ? "Drop the files here ..."
             : "Drag & drop some files here, or click to select files"}

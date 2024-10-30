@@ -1,14 +1,17 @@
-
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import FileUploader from "@/app/components/FileUploader";
 
 const Home: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+
   const getFile = async (file: File): Promise<Blob | undefined> => {
     const formData = new FormData();
     formData.append('file', file);
     
+    setLoading(true);
+
     try {
       const response = await fetch('/api/file', {
         method: 'POST',
@@ -23,6 +26,8 @@ const Home: React.FC = () => {
       
     } catch (error) {
       console.error("Failed to download file:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,13 +47,14 @@ const Home: React.FC = () => {
     if (blob !== undefined) {
       downloadFile(blob);
     } else {
-      // Put some handling here
+      // Handle error case
     }
   }, []);
 
   return (
     <div>
-      <FileUploader loading={false} onFilesUpdate={onFilesUploaded} />
+      <FileUploader loading={loading} onFilesUpdate={onFilesUploaded} />
+      {loading && <div>Loading...</div>}
     </div>
   );
 };
