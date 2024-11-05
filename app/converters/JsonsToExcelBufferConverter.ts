@@ -66,7 +66,6 @@ const formatRows = (worksheet: ExcelJS.Worksheet, rowCount: number) => {
             formatHeaderRow(row);
             alternator = 0;
             lastHeaderRow = rowIndex;
-            console.log('lastHeaderRow', lastHeaderRow);
         } else if (isCurrentRowFilled && isEvenRow) {
             formatEvenRow(row);
             alternator++;
@@ -78,7 +77,6 @@ const formatRows = (worksheet: ExcelJS.Worksheet, rowCount: number) => {
                 const columnName: string = worksheet.getRow(1).getCell(columnIndex).value as string;
                 if (excelConstants.columnFormatMapping[columnName] === excelConstants.excelCellFormats.money) {
                     const columnLetter = cell.address[0];
-                    console.log('lastHeaderRow1', lastHeaderRow);
                     cell.value = { formula: `=SUM(${columnLetter}${lastHeaderRow + 1}:${columnLetter}${rowIndex - 1})` };
                 }
             }); 
