@@ -3,6 +3,7 @@ const productAgentCommissionMapping = JSON.parse(process.env.PRODUCT_AGENT_COMMI
 const excludedAgents = JSON.parse(process.env.EXCLUDED_AGENTS || '[]');
 const productTypes = JSON.parse(process.env.PRODUCT_TYPES || '{}');
 const annuityCommissionPercentage = JSON.parse(process.env.ANNUITY_COMMISSION_PERCENTAGE || '0');
+const hardcodedAgents = JSON.parse(process.env.HARDCODED_AGENTS || '[]');
 
 export {
     productNameMapping,
@@ -10,4 +11,5 @@ export {
     excludedAgents,
     productTypes,
     annuityCommissionPercentage,
+    hardcodedAgents,
 };

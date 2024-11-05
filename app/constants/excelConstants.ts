@@ -20,25 +20,25 @@ const originalColumnNames = {
 };
 
 const columnNames = {
+  date: "Date",
+  carrier: "Carrier",
   productType: "Product Type",
+  policyNumber: "Policy #",
   productName: "Product",
-  commissionPercentage: "Commission %",
-  commissionOwed: "Commission Owed",
-  commissionPaid: "Commission Paid",
-  agent: "Agent",
+  issueDate: "Issue Date",
+  insured: "Insured",
+  billingFrequency: "Billing Frequency",
   premium: "Premium",
   commissionRatePercentage: "Comm Rate %",
   grossCommissionEarned: "Gross Comm Earned",
   participationPercentage: "% of particip",
   compensationType: "Compensation Type",
-  carrier: "Carrier",
-  issueDate: "Issue Date",
-  insured: "Insured",
-  date: "Date",
-  policyNumber: "Policy #",
-  billingFrequency: "Billing Frequency",
+  agent: "Agent",
   transactionType: "Transaction Type",
-  gap: "--",
+  gap: " ",
+  commissionPercentage: "Commission %",
+  commissionOwed: "Commission Owed",
+  commissionPaid: "Commission Paid",
   paymentMethod: "Payment Method",
   paymentDate: "Payment Date"
 };
@@ -111,6 +111,7 @@ const newColumns = [
 const columnFormatMapping = {
   [columnNames.premium]: excelCellFormats.money,
   [columnNames.commissionOwed]: excelCellFormats.money,
+  [columnNames.commissionPaid]: excelCellFormats.money,
   [columnNames.grossCommissionEarned]: excelCellFormats.money,
   [columnNames.commissionPercentage]: excelCellFormats.percent,
   [columnNames.participationPercentage]: excelCellFormats.percent,
@@ -118,6 +119,7 @@ const columnFormatMapping = {
 };
 
 const cellColors = {
+  navy: "00004DFF",
   darkBlue: "FF4A90E2",
   lighterBlue: "FFB3E5FC",
   lightestBlue: "FFE0F7FF",
@@ -127,6 +129,8 @@ const fontColors = {
   white: "FFFFFFFF",
   black: "FF333333",
 };
+
+const gapColumnWidth = 4;
 
 export {
   columnNames,
@@ -140,4 +144,5 @@ export {
   columnFormatMapping,
   cellColors,
   fontColors,
+  gapColumnWidth,
 };

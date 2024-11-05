@@ -8,12 +8,12 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
         const json = jsons[sheetName];
         const worksheet = workbook.addWorksheet(sheetName);
 
-        const columns = Object.keys(json[0]);
+        const columns = Object.values(excelConstants.columnNames);
         worksheet.columns = columns.map(col => ({ header: col, key: col, width: 20 }));
 
         json.forEach(row => worksheet.addRow(row));
 
-        formatWorkSheet(worksheet, columns, json.length);
+        formatWorkSheet(worksheet, json.length);
         
         worksheet.views = [
             {
@@ -30,76 +30,105 @@ const convert = async (jsons: { [key: string]: any[] }): Promise<Buffer> => {
     return Buffer.from(buffer);
 };
 
-const formatWorkSheet = (worksheet: ExcelJS.Worksheet, columns: string[], rowCount: number) => {
-    const headerRow = worksheet.getRow(1);
-    colorHeaderRow(headerRow);
+const formatWorkSheet = (worksheet: ExcelJS.Worksheet, rowCount: number) => {
+    formatRows(worksheet, rowCount);
+    formatColumns(worksheet);
+};
 
+const formatColumns = (worksheet: ExcelJS.Worksheet) => {
+    Object.keys(excelConstants.columnFormatMapping).forEach((columnName: string) => {
+        const format = excelConstants.columnFormatMapping[columnName];
+        const column = worksheet.getColumn(columnName);
+        formatColumn(column, format); 
+    });
+
+    setUniformColumnWidths(worksheet);
+    formatGapColumn(worksheet.getColumn(excelConstants.columnNames.gap));
+
+    worksheet.columns.forEach((column: Partial<ExcelJS.Column>) => {
+        centerColumn(column);
+    });
+};
+
+const formatRows = (worksheet: ExcelJS.Worksheet, rowCount: number) => {
     let previousRow = null;
     let alternator = 0;
-    for (let rowIndex = 2; rowIndex <= rowCount + 1; rowIndex++) {
+    let lastHeaderRow = 1;
+
+    for (let rowIndex = 1; rowIndex <= rowCount + 1; rowIndex++) {
         const row = worksheet.getRow(rowIndex);
         const isEvenRow = alternator % 2 === 0;
 
         const isPreviousRowEmpty = !previousRow?.getCell(1).value;
         const isCurrentRowFilled = row?.getCell(1).value;
-        const isCurrentRowFirst = rowIndex === 2;
 
-        if (isPreviousRowEmpty && isCurrentRowFilled && !isCurrentRowFirst) {
-            colorHeaderRow(row);
+        if (isPreviousRowEmpty && isCurrentRowFilled) {
+            formatHeaderRow(row);
             alternator = 0;
-        } else if (isCurrentRowFilled) {
-            if (isEvenRow) {
-                colorEvenRow(row);
-            } else {
-                colorOddRow(row);
-            }
+            lastHeaderRow = rowIndex;
+            console.log('lastHeaderRow', lastHeaderRow);
+        } else if (isCurrentRowFilled && isEvenRow) {
+            formatEvenRow(row);
             alternator++;
+        } else if (isCurrentRowFilled) {
+            formatOddRow(row);
+            alternator++;
+        } else if (!isPreviousRowEmpty) {
+            row.eachCell((cell, columnIndex) => {
+                const columnName: string = worksheet.getRow(1).getCell(columnIndex).value as string;
+                if (excelConstants.columnFormatMapping[columnName] === excelConstants.excelCellFormats.money) {
+                    const columnLetter = cell.address[0];
+                    console.log('lastHeaderRow1', lastHeaderRow);
+                    cell.value = { formula: `=SUM(${columnLetter}${lastHeaderRow + 1}:${columnLetter}${rowIndex - 1})` };
+                }
+            }); 
         }
 
         previousRow = row;
     }
+};
 
-    Object.keys(excelConstants.columnFormatMapping).forEach((columnName: string) => {
-        const columnIndex = columns.indexOf(columnName);
-        const format = excelConstants.columnFormatMapping[columnName];
-        if (columnIndex !== -1) {
-            formatColumn(worksheet, columnIndex + 1, rowCount, format); 
-        }
-    });
+const formatGapColumn = (column: ExcelJS.Column) => {
+    colorColumn(column, excelConstants.cellColors.navy);
+    centerColumn(column);
+    column.width = excelConstants.gapColumnWidth;
+};
 
-    setUniformColumnWidths(worksheet);
+const colorColumn = (column: ExcelJS.Column, cellColor: string) => {
+    column.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: cellColor }, 
+    }
+};
+
+const centerColumn = (column: ExcelJS.Column | Partial<ExcelJS.Column>) => {
+    column.alignment = { vertical: 'middle', horizontal: 'center' };
+};
+
+const formatHeaderRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.darkBlue, excelConstants.fontColors.white);
+};
+
+const formatEvenRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.lightestBlue, excelConstants.fontColors.black);
+};
+
+const formatOddRow = (row: ExcelJS.Row) => {
+    colorRow(row, excelConstants.cellColors.lighterBlue, excelConstants.fontColors.black);
 };
 
 const colorRow = (row: ExcelJS.Row, cellColor: string, fontColor: string) => {
-    row.eachCell(cell => {
-        cell.fill = {
+    row.fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: cellColor } 
         };
-        cell.font = { bold: true, color: { argb: fontColor } }; 
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    });
+    row.font = { bold: true, color: { argb: fontColor } }; 
 };
 
-const colorHeaderRow = (row: ExcelJS.Row) => {
-    colorRow(row, excelConstants.cellColors.darkBlue, excelConstants.fontColors.white);
-};
-
-const colorEvenRow = (row: ExcelJS.Row) => {
-    colorRow(row, excelConstants.cellColors.lightestBlue, excelConstants.fontColors.black);
-};
-
-const colorOddRow = (row: ExcelJS.Row) => {
-    colorRow(row, excelConstants.cellColors.lighterBlue, excelConstants.fontColors.black);
-};
-
-const formatColumn = (worksheet: ExcelJS.Worksheet, columnIndex: number, rowCount: number, format: string) => {
-    for (let row = 1; row <= rowCount + 1; row++) { 
-        const cell = worksheet.getRow(row).getCell(columnIndex);
-        cell.numFmt = format; 
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    }
+const formatColumn = (column: ExcelJS.Column, format: string) => {
+    column.numFmt = format;
 };
 
 const setUniformColumnWidths = (worksheet: ExcelJS.Worksheet): void => {
