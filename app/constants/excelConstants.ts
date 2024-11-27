@@ -132,6 +132,8 @@ const fontColors = {
 
 const gapColumnWidth = 4;
 
+const columnNameIndex = 4;
+
 export {
   columnNames,
   earningsReportName,
@@ -145,4 +147,5 @@ export {
   cellColors,
   fontColors,
   gapColumnWidth,
+  columnNameIndex,
 };

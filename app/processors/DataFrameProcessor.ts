@@ -32,13 +32,22 @@ const loadAndCleanData = (
     productNameMapping: { [key: string]: string },
     productTypes: { [key: string]: string },
 ): dfd.DataFrame => {
-    let modifiedDataFrame = new dfd.DataFrame(dataFrame.values.slice(5, -5), { columns: dataFrame.values[4] as any })
+    const emptyRowIndex = findFirstEmptyRowIndex(dataFrame, excelConstants.columnNameIndex)
+    let modifiedDataFrame = new dfd.DataFrame(dataFrame.values.slice(excelConstants.columnNameIndex + 1, emptyRowIndex), { columns: dataFrame.values[excelConstants.columnNameIndex] as any })
     modifiedDataFrame = modifiedDataFrame.drop({ columns: excelConstants.columnsToDrop });
     modifiedDataFrame.rename(excelConstants.renameMapping, { inplace: true });
     modifiedDataFrame = modifiedDataFrame.loc({ columns: excelConstants.columnsToKeep });
     modifiedDataFrame = mapProductNames(modifiedDataFrame, productNameMapping, productTypes);
     modifiedDataFrame = addEmptyColumns(modifiedDataFrame, excelConstants.newColumns);
     return modifiedDataFrame;
+};
+
+const findFirstEmptyRowIndex = (dataFrame: dfd.DataFrame, start: number) => {
+    let index = start
+    while ((dataFrame.values[index] as any[]).length > 0) {
+        index++;
+    }
+    return index;
 };
 
 const mapProductNames = (
